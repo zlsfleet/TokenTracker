@@ -1,3 +1,4 @@
+import beans.GlobalEntity;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -8,20 +9,51 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
+import org.hibernate.cfg.Configuration;
 
 import java.sql.Timestamp;
 
 
 public class TrackerMain {
-    public static final String APIKEY = "4R7V8WHSWN8HWZWVPYD5QFSY4B6QN6VJ7M";
-    public static final String CONTRACT_ADDRESS = "0x292ee3b58ce3f007b9ee88605b76033eaa60cbde";
-    public static final String API_URL = "http://api.etherscan.io/api";
+    private static SessionFactory sf;
+
+    static {
+        sf = new Configuration().configure().buildSessionFactory();
+    }
+
+    String apikey;
+    String contractAddress;
+    String apiURL;
+    String lastTime;
+    int lastCount;
 
     Timestamp execTime;
 
     public TrackerMain() {
-        String rs = "";
+        String rs;
         try {
+            Session session = sf.openSession();
+            Transaction tx = session.beginTransaction();
+            GlobalEntity u = session.get(GlobalEntity.class, 1);
+
+            apikey = u.getApikey();
+            contractAddress = u.getContractAddress();
+            apiURL = u.getApiUrl();
+            lastTime = u.getTimestamp().toString();
+            lastCount = u.getCount();
+
+            System.out.println(apikey);
+            System.out.println(contractAddress);
+            System.out.println(apiURL);
+            System.out.println(lastTime);
+            System.out.println(lastCount);
+
+            tx.commit();
+            session.close();
+            sf.close();
 
             rs = getHttpResult();
             parseJSON(rs);
@@ -49,15 +81,15 @@ public class TrackerMain {
         HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
         //httpClientBuilder =  HttpClients.custom().setUserAgent("Mozilla/5.0 Firefox/26.0");
         CloseableHttpClient closeableHttpClient = httpClientBuilder.build();
-        URIBuilder uriBuilder = new URIBuilder(API_URL);
+        URIBuilder uriBuilder = new URIBuilder(apiURL);
 
         uriBuilder.addParameter("module", "account");
         uriBuilder.addParameter("action", "txlist");
-        uriBuilder.addParameter("address", CONTRACT_ADDRESS);
+        uriBuilder.addParameter("address", contractAddress);
         uriBuilder.addParameter("startblock", "0");
         uriBuilder.addParameter("endblock", "99999999");
         uriBuilder.addParameter("sort", "asc");
-        uriBuilder.addParameter("apikey", APIKEY);
+        uriBuilder.addParameter("apikey", apikey);
 
         System.out.println(uriBuilder.toString());
         HttpGet httpget = new HttpGet(uriBuilder.build());

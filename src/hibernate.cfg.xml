@@ -6,14 +6,17 @@
     <session-factory>
         <property name="connection.url">jdbc:mysql://localhost:3306/bexp</property>
         <property name="connection.driver_class">com.mysql.jdbc.Driver</property>
+        <property name="format_sql">true</property>
+        <!--<property name="show_sql">true</property>-->
+        <property name="hibernate.connection.username">kris</property>
+        <property name="hibernate.connection.password">rooney10</property>
+
         <mapping class="beans.AlarmEntity"/>
         <mapping class="beans.RunEntity"/>
         <mapping class="beans.TransactionEntity"/>
         <mapping class="beans.UserEntity"/>
-        <!-- <property name="connection.username"/> -->
-        <!-- <property name="connection.password"/> -->
+        <mapping class="beans.GlobalEntity"/>
 
-        <!-- DB schema will be updated if needed -->
-        <!-- <property name="hbm2ddl.auto">update</property> -->
+
     </session-factory>
 </hibernate-configuration>
