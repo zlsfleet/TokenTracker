@@ -24,16 +24,21 @@ public class TrackerMain {
         sf = new Configuration().configure().buildSessionFactory();
     }
 
-    String apikey;
-    String contractAddress;
-    String apiURL;
-    String lastTime;
-    int lastCount;
+    private String apikey;
+    private String contractAddress;
+    private String apiURL;
+    private String lastTime;
+    private int decimals;
+    private int lastCount;
+    private String defaultMethod;
+
 
     Timestamp execTime;
 
     public TrackerMain() {
         String rs;
+        JsonObject json;
+
         try {
             Session session = sf.openSession();
             Transaction tx = session.beginTransaction();
@@ -44,6 +49,7 @@ public class TrackerMain {
             apiURL = u.getApiUrl();
             lastTime = u.getTimestamp().toString();
             lastCount = u.getCount();
+            decimals = u.getDecimals();
 
             System.out.println(apikey);
             System.out.println(contractAddress);
@@ -56,11 +62,63 @@ public class TrackerMain {
             sf.close();
 
             rs = getHttpResult();
-            parseJSON(rs);
+
+            JsonParser parse = new JsonParser();
+            json = (JsonObject) parse.parse(rs);
+
+            int status = json.get("status").getAsInt();
+            JsonArray result = json.get("result").getAsJsonArray();
+
+            if (result.size() == lastCount) {
+                System.out.println("No new transactions.");
+            } else if (status != 1) {
+                System.out.println("API Error!");
+
+            } else {
+                for (int i = lastCount; i < result.size(); i++) {
+                    JsonObject transaction = result.get(i).getAsJsonObject();
+
+                    int transactionStatus = transaction.get("txreceipt_status").getAsInt();
+                    if (transactionStatus == 1) {
+                        
+                        String blockHash = transaction.get("blockHash").getAsString();
+                        String fromHash = transaction.get("from").getAsString();
+                        String toHash = transaction.get("to").getAsString();
+                        String timeStamp = transaction.get("timeStamp").getAsString();
+                        String input = transaction.get("input").getAsString();
+                        if (isCorrectMethod(input)) {
+                            long value = getValue(input);
+                            System.out.println(value);
+                        }
+
+                    } else {
+                        //System.out.println("Transaction not confirmed.");
+                    }
+
+                }
+            }
+            //System.out.println("status:" + json.get("status").getAsInt());
+            //System.out.println("message:" + json.get("message").getAsString());
+
+            //System.out.println("result:" + result.get(0));
+
         } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
+
+    private long getValue(String input) {
+        String arg2 = input.substring(input.length() - 64);
+        return Long.parseLong(arg2) / (long) Math.pow(10, decimals);
+
+    }
+
+    private boolean isCorrectMethod(String input) {
+        String method = input.substring(0, 10);
+        return method.equals(defaultMethod);
+
+    }
+
 
     public static void parseJSON(String json) {
         JsonParser parse = new JsonParser();

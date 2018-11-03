@@ -13,6 +13,8 @@ public class GlobalEntity {
     private String contractAddress;
     private String apikey;
     private String apiUrl;
+    private Integer decimals;
+    private String defaultMethod;
 
     @Id
     @Column(name = "id")
@@ -90,5 +92,25 @@ public class GlobalEntity {
     @Override
     public int hashCode() {
         return Objects.hash(id, count, timestamp, contractAddress, apikey, apiUrl);
+    }
+
+    @Basic
+    @Column(name = "decimals")
+    public Integer getDecimals() {
+        return decimals;
+    }
+
+    public void setDecimals(Integer decimals) {
+        this.decimals = decimals;
+    }
+
+    @Basic
+    @Column(name = "default_method")
+    public String getDefaultMethod() {
+        return defaultMethod;
+    }
+
+    public void setDefaultMethod(String defaultMethod) {
+        this.defaultMethod = defaultMethod;
     }
 }
