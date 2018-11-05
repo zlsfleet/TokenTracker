@@ -15,6 +15,7 @@ public class GlobalEntity {
     private String apiUrl;
     private Integer decimals;
     private String defaultMethod;
+    private Integer alarmValue;
 
     @Id
     @Column(name = "id")
@@ -76,24 +77,6 @@ public class GlobalEntity {
         this.apiUrl = apiUrl;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        GlobalEntity that = (GlobalEntity) o;
-        return id == that.id &&
-                Objects.equals(count, that.count) &&
-                Objects.equals(timestamp, that.timestamp) &&
-                Objects.equals(contractAddress, that.contractAddress) &&
-                Objects.equals(apikey, that.apikey) &&
-                Objects.equals(apiUrl, that.apiUrl);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(id, count, timestamp, contractAddress, apikey, apiUrl);
-    }
-
     @Basic
     @Column(name = "decimals")
     public Integer getDecimals() {
@@ -113,4 +96,34 @@ public class GlobalEntity {
     public void setDefaultMethod(String defaultMethod) {
         this.defaultMethod = defaultMethod;
     }
+
+    @Basic
+    @Column(name = "alarm_value")
+    public Integer getAlarmValue() {
+        return alarmValue;
+    }
+
+    public void setAlarmValue(Integer alarmValue) {
+        this.alarmValue = alarmValue;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        GlobalEntity that = (GlobalEntity) o;
+        return id == that.id &&
+                Objects.equals(count, that.count) &&
+                Objects.equals(timestamp, that.timestamp) &&
+                Objects.equals(contractAddress, that.contractAddress) &&
+                Objects.equals(apikey, that.apikey) &&
+                Objects.equals(apiUrl, that.apiUrl);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, count, timestamp, contractAddress, apikey, apiUrl);
+    }
+
+
 }

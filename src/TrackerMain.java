@@ -31,68 +31,58 @@ public class TrackerMain {
     private int decimals;
     private int lastCount;
     private String defaultMethod;
+    private long alarmValue;
 
-
-    Timestamp execTime;
+    private Timestamp execTime;
 
     public TrackerMain() {
-        String rs;
+        String jsonString;
         JsonObject json;
+        int count = 0;
 
         try {
-            Session session = sf.openSession();
-            Transaction tx = session.beginTransaction();
-            GlobalEntity u = session.get(GlobalEntity.class, 1);
+            // get global settings
+            getGlobal();
 
-            apikey = u.getApikey();
-            contractAddress = u.getContractAddress();
-            apiURL = u.getApiUrl();
-            lastTime = u.getTimestamp().toString();
-            lastCount = u.getCount();
-            decimals = u.getDecimals();
-
-            System.out.println(apikey);
-            System.out.println(contractAddress);
-            System.out.println(apiURL);
-            System.out.println(lastTime);
-            System.out.println(lastCount);
-
-            tx.commit();
-            session.close();
-            sf.close();
-
-            rs = getHttpResult();
-
+            // call etherscan api to get latest update of transactions
+            jsonString = getHttpResult();
             JsonParser parse = new JsonParser();
-            json = (JsonObject) parse.parse(rs);
+            json = (JsonObject) parse.parse(jsonString);
 
             int status = json.get("status").getAsInt();
             JsonArray result = json.get("result").getAsJsonArray();
 
-            if (result.size() == lastCount) {
+            if (result.size() == lastCount) {   // check whether there is new transactions
                 System.out.println("No new transactions.");
-            } else if (status != 1) {
+            } else if (status != 1) {   // api call error
                 System.out.println("API Error!");
-
             } else {
+                // loop through transactions
                 for (int i = lastCount; i < result.size(); i++) {
                     JsonObject transaction = result.get(i).getAsJsonObject();
 
                     int transactionStatus = transaction.get("txreceipt_status").getAsInt();
-                    if (transactionStatus == 1) {
-                        
+                    if (transactionStatus == 1) {   // transaction status ok
+
                         String blockHash = transaction.get("blockHash").getAsString();
                         String fromHash = transaction.get("from").getAsString();
                         String toHash = transaction.get("to").getAsString();
                         String timeStamp = transaction.get("timeStamp").getAsString();
                         String input = transaction.get("input").getAsString();
-                        if (isCorrectMethod(input)) {
+
+                        if (isCorrectMethod(input)) {   // is a transfer record
+
                             long value = getValue(input);
-                            System.out.println(value);
+                            updateDatabase(transaction);
+
+                            if (value >= this.alarmValue) { // value >= alarm threshold
+                                setAlarm(transaction);
+                            }
+                            count++;
                         }
 
-                    } else {
-                        //System.out.println("Transaction not confirmed.");
+                    } else {    //transaction status error
+                        System.out.println("Transaction not confirmed.");
                     }
 
                 }
@@ -107,15 +97,51 @@ public class TrackerMain {
         }
     }
 
+    private void getGlobal() {
+        // new hibernate session
+        Session session = sf.openSession();
+        Transaction tx = session.beginTransaction();
+
+        GlobalEntity u = session.get(GlobalEntity.class, 1);
+
+        // get settings from bexp.global
+        apikey = u.getApikey();
+        contractAddress = u.getContractAddress();
+        apiURL = u.getApiUrl();
+        lastTime = u.getTimestamp().toString();
+        lastCount = u.getCount();
+        decimals = u.getDecimals();
+        defaultMethod = u.getDefaultMethod();
+        alarmValue = u.getAlarmValue();
+
+//            System.out.println(apikey);
+//            System.out.println(contractAddress);
+//            System.out.println(apiURL);
+//            System.out.println(lastTime);
+//            System.out.println(lastCount);
+
+        tx.commit();
+        session.close();
+        sf.close();
+    }
+
+    private void updateDatabase(JsonObject transaction) {
+    }
+
+    private void setAlarm(JsonObject transaction) {
+    }
+
     private long getValue(String input) {
-        String arg2 = input.substring(input.length() - 64);
-        return Long.parseLong(arg2) / (long) Math.pow(10, decimals);
+        String arg2 = input.substring(input.length() - 19);
+        Long value = Long.valueOf(arg2, 16) / (long) Math.pow(10, decimals);
+        return value;
 
     }
 
     private boolean isCorrectMethod(String input) {
         String method = input.substring(0, 10);
-        return method.equals(defaultMethod);
+//        System.out.println(method);
+        return method.equals(this.defaultMethod);
 
     }
 
@@ -141,6 +167,7 @@ public class TrackerMain {
         CloseableHttpClient closeableHttpClient = httpClientBuilder.build();
         URIBuilder uriBuilder = new URIBuilder(apiURL);
 
+        // set the parameters for api call
         uriBuilder.addParameter("module", "account");
         uriBuilder.addParameter("action", "txlist");
         uriBuilder.addParameter("address", contractAddress);
@@ -148,16 +175,15 @@ public class TrackerMain {
         uriBuilder.addParameter("endblock", "99999999");
         uriBuilder.addParameter("sort", "asc");
         uriBuilder.addParameter("apikey", apikey);
+        //System.out.println(uriBuilder.toString());
 
-        System.out.println(uriBuilder.toString());
         HttpGet httpget = new HttpGet(uriBuilder.build());
 
         String json = null;
         HttpResponse response = closeableHttpClient.execute(httpget);
         HttpEntity entity = response.getEntity();
         if (entity != null) {
-            execTime = new Timestamp(System.currentTimeMillis());
-
+            execTime = new Timestamp(System.currentTimeMillis());   // record call timestamp
             json = EntityUtils.toString(entity, "UTF-8").trim();
         }
 
