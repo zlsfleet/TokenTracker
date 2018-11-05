@@ -1,13 +1,14 @@
 package beans;
 
 import javax.persistence.*;
+import java.sql.Timestamp;
 import java.util.Objects;
 
 @Entity
 @Table(name = "run", schema = "bexp")
 public class RunEntity {
     private int idRun;
-    private Integer timestamp;
+    private Timestamp timestamp;
     private String lastTransHash;
     private Integer records;
 
@@ -23,11 +24,11 @@ public class RunEntity {
 
     @Basic
     @Column(name = "timestamp")
-    public Integer getTimestamp() {
+    public Timestamp getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(Integer timestamp) {
+    public void setTimestamp(Timestamp timestamp) {
         this.timestamp = timestamp;
     }
 

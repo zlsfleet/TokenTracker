@@ -1,4 +1,6 @@
+import beans.AlarmEntity;
 import beans.GlobalEntity;
+import beans.RunEntity;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -38,7 +40,6 @@ public class TrackerMain {
     public TrackerMain() {
         String jsonString;
         JsonObject json;
-        int count = 0;
 
         try {
             // get global settings
@@ -57,8 +58,14 @@ public class TrackerMain {
             } else if (status != 1) {   // api call error
                 System.out.println("API Error!");
             } else {
+
+                int count = 0;
+                String lastHash = "";
+
                 // loop through transactions
                 for (int i = lastCount; i < result.size(); i++) {
+
+
                     JsonObject transaction = result.get(i).getAsJsonObject();
 
                     int transactionStatus = transaction.get("txreceipt_status").getAsInt();
@@ -76,9 +83,10 @@ public class TrackerMain {
                             updateDatabase(transaction);
 
                             if (value >= this.alarmValue) { // value >= alarm threshold
-                                setAlarm(transaction);
+                                setAlarm(blockHash);
                             }
                             count++;
+                            lastHash = blockHash;
                         }
 
                     } else {    //transaction status error
@@ -86,6 +94,7 @@ public class TrackerMain {
                     }
 
                 }
+                updateRun(count, lastHash);
             }
             //System.out.println("status:" + json.get("status").getAsInt());
             //System.out.println("message:" + json.get("message").getAsString());
@@ -95,6 +104,20 @@ public class TrackerMain {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
+    }
+
+    private void updateRun(int count, String lastHash) {
+        Session session = sf.openSession();
+        Transaction tx = session.beginTransaction();
+
+        RunEntity run = new RunEntity();
+        run.setTimestamp(execTime);
+        run.setLastTransHash(lastHash);
+        run.setRecords(count);
+
+        session.save(run);
+        tx.commit();
+        session.close();
     }
 
     private void getGlobal() {
@@ -126,9 +149,26 @@ public class TrackerMain {
     }
 
     private void updateDatabase(JsonObject transaction) {
+        Session session = sf.openSession();
+        Transaction tx = session.beginTransaction();
+
+        session.save(transaction);
+        tx.commit();
+        session.close();
+
     }
 
-    private void setAlarm(JsonObject transaction) {
+    private void setAlarm(String hash) {
+        Session session = sf.openSession();
+        Transaction tx = session.beginTransaction();
+
+        AlarmEntity alarm = new AlarmEntity();
+        alarm.setHashTrans(hash);
+        alarm.setTimestamp(execTime);
+
+        session.save(alarm);
+        tx.commit();
+        session.close();
     }
 
     private long getValue(String input) {

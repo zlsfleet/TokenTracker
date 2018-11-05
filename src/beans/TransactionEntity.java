@@ -1,6 +1,7 @@
 package beans;
 
 import javax.persistence.*;
+import java.sql.Timestamp;
 import java.util.Objects;
 
 @Entity
@@ -11,7 +12,7 @@ public class TransactionEntity {
     private String transStatus;
     private String fromHash;
     private String toHash;
-    private Integer timestamp;
+    private Timestamp timestamp;
     private Integer amount;
     private String memo;
 
@@ -67,11 +68,11 @@ public class TransactionEntity {
 
     @Basic
     @Column(name = "timestamp")
-    public Integer getTimestamp() {
+    public Timestamp getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(Integer timestamp) {
+    public void setTimestamp(Timestamp timestamp) {
         this.timestamp = timestamp;
     }
 
