@@ -169,6 +169,13 @@ public class TrackerMain {
         session.save(alarm);
         tx.commit();
         session.close();
+
+        sendMail();
+        //sendSMS();
+    }
+
+    private void sendMail() {
+
     }
 
     private long getValue(String input) {
