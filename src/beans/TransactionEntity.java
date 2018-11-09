@@ -13,7 +13,7 @@ public class TransactionEntity {
     private String fromHash;
     private String toHash;
     private Timestamp timestamp;
-    private Integer amount;
+    private Long amount;
     private String memo;
 
     @Id
@@ -78,11 +78,11 @@ public class TransactionEntity {
 
     @Basic
     @Column(name = "amount")
-    public Integer getAmount() {
+    public Long getAmount() {
         return amount;
     }
 
-    public void setAmount(Integer amount) {
+    public void setAmount(Long amount) {
         this.amount = amount;
     }
 

@@ -16,8 +16,6 @@
         <mapping class="beans.RunEntity"/>
         <mapping class="beans.TransactionEntity"/>
         <mapping class="beans.UserEntity"/>
-        <mapping class="beans.GlobalEntity"/>
-
 
     </session-factory>
 </hibernate-configuration>

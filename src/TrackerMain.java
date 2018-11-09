@@ -1,6 +1,6 @@
 import beans.AlarmEntity;
-import beans.GlobalEntity;
 import beans.RunEntity;
+import beans.TransactionEntity;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -16,7 +16,11 @@ import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 
+import java.io.FileInputStream;
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Properties;
 
 
 public class TrackerMain {
@@ -26,20 +30,15 @@ public class TrackerMain {
         sf = new Configuration().configure().buildSessionFactory();
     }
 
-    private String apikey;
-    private String contractAddress;
-    private String apiURL;
-    private String lastTime;
-    private int decimals;
-    private int lastCount;
-    private String defaultMethod;
-    private long alarmValue;
+    private Global global;
 
     private Timestamp execTime;
 
     public TrackerMain() {
         String jsonString;
         JsonObject json;
+
+        global = new Global();
 
         try {
             // get global settings
@@ -53,7 +52,7 @@ public class TrackerMain {
             int status = json.get("status").getAsInt();
             JsonArray result = json.get("result").getAsJsonArray();
 
-            if (result.size() == lastCount) {   // check whether there is new transactions
+            if (result.size() == global.getCount()) {   // check whether there is new transactions
                 System.out.println("No new transactions.");
             } else if (status != 1) {   // api call error
                 System.out.println("API Error!");
@@ -63,7 +62,7 @@ public class TrackerMain {
                 String lastHash = "";
 
                 // loop through transactions
-                for (int i = lastCount; i < result.size(); i++) {
+                for (int i = global.getCount(); i < result.size(); i++) {
 
 
                     JsonObject transaction = result.get(i).getAsJsonObject();
@@ -71,22 +70,34 @@ public class TrackerMain {
                     int transactionStatus = transaction.get("txreceipt_status").getAsInt();
                     if (transactionStatus == 1) {   // transaction status ok
 
-                        String blockHash = transaction.get("blockHash").getAsString();
-                        String fromHash = transaction.get("from").getAsString();
-                        String toHash = transaction.get("to").getAsString();
-                        String timeStamp = transaction.get("timeStamp").getAsString();
+                        TransactionEntity entity = new TransactionEntity();
+
                         String input = transaction.get("input").getAsString();
 
                         if (isCorrectMethod(input)) {   // is a transfer record
 
-                            long value = getValue(input);
-                            updateDatabase(transaction);
+                            entity.setTransHash(transaction.get("blockHash").getAsString());
+                            entity.setFromHash(transaction.get("from").getAsString());
+                            entity.setToHash(transaction.get("to").getAsString());
+                            entity.setTransStatus("OK");
+                            entity.setMemo("");
 
-                            if (value >= this.alarmValue) { // value >= alarm threshold
-                                setAlarm(blockHash);
+                            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");//12小时制
+                            Date date = new Date();
+                            date.setTime(Long.parseLong(transaction.get("timeStamp").getAsString()) * 1000);
+                            entity.setTimestamp(Timestamp.valueOf(simpleDateFormat.format(date)));
+
+
+                            long value = getValue(input);
+                            entity.setAmount(value);
+
+                            updateDatabase(entity);
+
+                            if (value >= global.getAlarmValue()) { // value >= alarm threshold
+                                setAlarm(entity.getTransHash());
                             }
                             count++;
-                            lastHash = blockHash;
+                            lastHash = entity.getTransHash();
                         }
 
                     } else {    //transaction status error
@@ -94,7 +105,10 @@ public class TrackerMain {
                     }
 
                 }
+                System.out.println("1");
+
                 updateRun(count, lastHash);
+                System.out.println("2");
             }
             //System.out.println("status:" + json.get("status").getAsInt());
             //System.out.println("message:" + json.get("message").getAsString());
@@ -104,6 +118,7 @@ public class TrackerMain {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
+        System.out.println("3");
     }
 
     private void updateRun(int count, String lastHash) {
@@ -121,36 +136,31 @@ public class TrackerMain {
     }
 
     private void getGlobal() {
-        // new hibernate session
-        Session session = sf.openSession();
-        Transaction tx = session.beginTransaction();
+        try {
+            Properties properties = new Properties();
+            FileInputStream in = new FileInputStream("global.properties");
+            properties.load(in);
+            in.close();
 
-        GlobalEntity u = session.get(GlobalEntity.class, 1);
+            global.setAlarmValue(Long.parseLong(properties.getProperty("alarm_value")));
+            global.setApikey(properties.getProperty("apikey"));
+            global.setApiURL(properties.getProperty("api_url"));
+            global.setContractAddress(properties.getProperty("contract_address"));
+            global.setCount(Integer.parseInt(properties.getProperty("count")));
+            global.setDecimals(Integer.parseInt(properties.getProperty("decimals")));
+            global.setDefaultMethod(properties.getProperty("default_method"));
+            global.setTimestamp(Timestamp.valueOf(properties.getProperty("timestamp")));
 
-        // get settings from bexp.global
-        apikey = u.getApikey();
-        contractAddress = u.getContractAddress();
-        apiURL = u.getApiUrl();
-        lastTime = u.getTimestamp().toString();
-        lastCount = u.getCount();
-        decimals = u.getDecimals();
-        defaultMethod = u.getDefaultMethod();
-        alarmValue = u.getAlarmValue();
-
-//            System.out.println(apikey);
-//            System.out.println(contractAddress);
-//            System.out.println(apiURL);
-//            System.out.println(lastTime);
-//            System.out.println(lastCount);
-
-        tx.commit();
-        session.close();
-        sf.close();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }
 
-    private void updateDatabase(JsonObject transaction) {
+    private void updateDatabase(TransactionEntity transaction) {
         Session session = sf.openSession();
         Transaction tx = session.beginTransaction();
+
+        TransactionEntity entity = new TransactionEntity();
 
         session.save(transaction);
         tx.commit();
@@ -180,7 +190,7 @@ public class TrackerMain {
 
     private long getValue(String input) {
         String arg2 = input.substring(input.length() - 19);
-        Long value = Long.valueOf(arg2, 16) / (long) Math.pow(10, decimals);
+        Long value = Long.valueOf(arg2, 16) / (long) Math.pow(10, global.getDecimals());
         return value;
 
     }
@@ -188,7 +198,7 @@ public class TrackerMain {
     private boolean isCorrectMethod(String input) {
         String method = input.substring(0, 10);
 //        System.out.println(method);
-        return method.equals(this.defaultMethod);
+        return method.equals(global.getDefaultMethod());
 
     }
 
@@ -212,16 +222,16 @@ public class TrackerMain {
         HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
         //httpClientBuilder =  HttpClients.custom().setUserAgent("Mozilla/5.0 Firefox/26.0");
         CloseableHttpClient closeableHttpClient = httpClientBuilder.build();
-        URIBuilder uriBuilder = new URIBuilder(apiURL);
+        URIBuilder uriBuilder = new URIBuilder(global.getApiURL());
 
         // set the parameters for api call
         uriBuilder.addParameter("module", "account");
         uriBuilder.addParameter("action", "txlist");
-        uriBuilder.addParameter("address", contractAddress);
+        uriBuilder.addParameter("address", global.getContractAddress());
         uriBuilder.addParameter("startblock", "0");
         uriBuilder.addParameter("endblock", "99999999");
         uriBuilder.addParameter("sort", "asc");
-        uriBuilder.addParameter("apikey", apikey);
+        uriBuilder.addParameter("apikey", global.getApikey());
         //System.out.println(uriBuilder.toString());
 
         HttpGet httpget = new HttpGet(uriBuilder.build());
