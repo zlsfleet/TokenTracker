@@ -16,7 +16,14 @@ import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 
+import javax.mail.Message;
+import javax.mail.PasswordAuthentication;
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -180,12 +187,38 @@ public class TrackerMain {
         tx.commit();
         session.close();
 
-        sendMail();
+        sendMail(hash);
         //sendSMS();
     }
 
-    private void sendMail() {
+    private void sendMail(String hash) {
 
+        Properties props = new Properties();
+        props.put("mail.smtp.host", "smtp.yandex.ru");
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.port", "465");
+        props.put("mail.smtp.socketFactory.port", "465");
+        props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+
+        javax.mail.Session session = javax.mail.Session.getDefaultInstance(props,
+                new javax.mail.Authenticator() {
+                    @Override
+                    protected PasswordAuthentication getPasswordAuthentication() {
+                        return new PasswordAuthentication("yandex.user", "yandex.password");
+                    }
+                });
+        try {
+            Message message = new MimeMessage(session);
+            message.setFrom(new InternetAddress("yandex.user@ya.ru"));
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("a@grasoff.net"));
+            message.setSubject("Subject");
+            message.setText("Text");
+
+            Transport.send(message);
+        }
+        catch(Exception ex){
+            ex.printStackTrace();
+        }
     }
 
     private long getValue(String input) {
