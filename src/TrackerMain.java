@@ -22,8 +22,6 @@ import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -69,6 +67,7 @@ public class TrackerMain {
                 String lastHash = "";
 
                 // loop through transactions
+                System.out.println(result);
                 for (int i = global.getCount(); i < result.size(); i++) {
 
 
@@ -126,6 +125,7 @@ public class TrackerMain {
             ex.printStackTrace();
         }
         System.out.println("3");
+        System.exit(0);
     }
 
     private void updateRun(int count, String lastHash) {
@@ -187,7 +187,7 @@ public class TrackerMain {
         tx.commit();
         session.close();
 
-        sendMail(hash);
+        //sendMail(hash);
         //sendSMS();
     }
 
